@@ -15,13 +15,6 @@ const TFE_EMAIL = __ENV.TFE_EMAIL;
 const TFE_ORG_NAME = __ENV.TFE_ORG_NAME;
 const TFE_URL = __ENV.TFE_URL;
 
-// Options to enable smoke testing
-// https://k6.io/docs/test-types/smoke-testing
-export let options = {
-  vus: 3,
-  iterations: 3,
-};
-
 export function setup() {
   let data = {
     params: {
