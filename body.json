@@ -1,0 +1,9 @@
+{
+  "data": {
+    "type": "organizations",
+    "attributes": {
+      "name": "test",
+      "email": "aaron.lane@hashicorp.com"
+    }
+  }
+}
