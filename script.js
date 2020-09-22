@@ -185,16 +185,6 @@ export default (data) => {
   check(runStatus, {
     "run is applied": (status) => status == "applied",
   });
-
-  // https://www.terraform.io/docs/cloud/api/workspaces.html#delete-a-workspace
-  // k6 documentation says the body is optional, but omitting it causes the request to be unauthorized
-  let deleteWorkspace = http.del(workspaceURL, "", data.params);
-
-  check(deleteWorkspace, {
-    "workspace is deleted": (response) => response.status == "200",
-  });
-
-  sleep(1);
 };
 
 export function teardown(data) {
