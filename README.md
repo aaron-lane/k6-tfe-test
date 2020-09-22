@@ -3,9 +3,6 @@
 This repository comprises an example of using [k6](https://k6.io/) to
 test TFE.
 
-The test script creates one workspace and one Terraform run per
-iteration.
-
 ## Installation
 
 Install k6 based on the
@@ -13,10 +10,14 @@ Install k6 based on the
 
 ## Usage
 
-The URL and an administrative token for a TFE deployment are required
-to run the test.
+The exported `default` function contains the main test logic of
+creating one workspace and one Terraform, while the exported `setup`
+and `teardown` functions manage the lifecycle of the test organization.
 
-The following example demonstrates how to use the test script for a
+The URL and an administrative token for a TFE deployment are required
+to run the test script.
+
+The following example demonstrates how to run the test script for a
 smoke test:
 
 ```sh
@@ -30,5 +31,5 @@ k6 run \
   ./script.js
 ```
 
-The number of virtual users (VUs), iterations, and duration can all be
-adjusted via the k6 command-line interface.
+The number of virtual users (VUs), iterations, and maximum duration of
+time can all be adjusted via the k6 command-line interface.
