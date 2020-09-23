@@ -8,6 +8,11 @@ test TFE.
 Install k6 based on the
 [k6 installation document](https://k6.io/docs/getting-started/installation).
 
+Deploy TFE,
+[install Terraform 0.13.3](https://www.terraform.io/docs/enterprise/admin/resources.html#managing-terraform-versions),
+and
+[create an API token](https://www.terraform.io/docs/cloud/users-teams-organizations/api-tokens.html).
+
 ## Usage
 
 The exported `default` function contains the main test logic of
