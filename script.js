@@ -68,7 +68,7 @@ export default (data) => {
         name: workspaceName,
         "auto-apply": true,
         "queue-all-runs": true,
-        "terraform-version": "0.13.0",
+        "terraform-version": "0.13.3",
       },
     },
   });
