@@ -1,5 +1,5 @@
 import { uuidv4 } from "https://jslib.k6.io/k6-utils/1.0.0/index.js";
-import { check, sleep } from "k6";
+import { check, fail, sleep } from "k6";
 import http from "k6/http";
 
 const TERMINATED_RUN_STATUSES = [
@@ -42,9 +42,13 @@ export function setup() {
     data.params
   );
 
-  if (createOrganization.status != "201") {
-    throw new Error(
-      `Failed to create the test organization ${TFE_ORG_NAME}: HTTP response status ${createOrganization.status}`
+  if (
+    !check(createOrganization, {
+      "test organization created": (response) => response.status == 201,
+    })
+  ) {
+    fail(
+      `test organization ${TFE_ORG_NAME} not created: HTTP response status ${createOrganization.status}`
     );
   }
 
@@ -79,9 +83,15 @@ export default (data) => {
     data.params
   );
 
-  check(createWorkspace, {
-    "workspace is created": (response) => response.status == "201",
-  });
+  if (
+    !check(createWorkspace, {
+      "workspace is created": (response) => response.status == 201,
+    })
+  ) {
+    fail(
+      `workspace ${workspaceName} was not created: HTTP response status ${createWorkspace.status}`
+    );
+  }
 
   let workspaceID = JSON.parse(createWorkspace.body).data.id;
 
@@ -105,9 +115,15 @@ export default (data) => {
     data.params
   );
 
-  check(createConfigurationVersion, {
-    "configuration version is created": (response) => response.status == "201",
-  });
+  if (
+    !check(createConfigurationVersion, {
+      "configuration version is created": (response) => response.status == 201,
+    })
+  ) {
+    fail(
+      `configuration version was not created: HTTP response status ${createConfigurationVersion.status}`
+    );
+  }
 
   let configurationUploadData = JSON.parse(createConfigurationVersion.body)
     .data;
@@ -127,9 +143,15 @@ export default (data) => {
     data.params
   );
 
-  check(uploadConfigurationFiles, {
-    "configuration files uploaded": (response) => (response.status = "201"),
-  });
+  if (
+    !check(uploadConfigurationFiles, {
+      "configuration files uploaded": (response) => response.status == 200,
+    })
+  ) {
+    fail(
+      `configuration files were not uploaded: HTTP response status ${uploadConfigurationFiles.status}`
+    );
+  }
 
   sleep(1);
 
@@ -156,35 +178,44 @@ export default (data) => {
 
   let createRun = http.post(`${TFE_API_URL}/runs`, createRunBody, data.params);
 
-  check(createRun, {
-    "run is created": (response) => (response.status = "201"),
-  });
+  if (
+    !check(createRun, {
+      "run is created": (response) => response.status == 201,
+    })
+  ) {
+    fail(
+      `run for workspace ${workspaceName} and configuration version ${configurationVersionID} not created: HTTP response status ${createRun.status}`
+    );
+  }
 
   let runID = JSON.parse(createRun.body).data.id;
 
   sleep(1);
 
   // https://www.terraform.io/docs/cloud/api/run.html#get-run-details
-  let count = 0;
-  let runStatus;
+  let runStatus = "";
+  let runSleepDuration = 1;
 
-  while (count < 20) {
+  while (!TERMINATED_RUN_STATUSES.includes(runStatus)) {
+    sleep(runSleepDuration);
+
+    // binary exponential backoff
+    runSleepDuration = runSleepDuration * 2;
+
     let getRunDetails = http.get(`${TFE_API_URL}/runs/${runID}`, data.params);
 
     runStatus = JSON.parse(getRunDetails.body).data.attributes.status;
-
-    if (TERMINATED_RUN_STATUSES.includes(runStatus)) {
-      break;
-    }
-
-    sleep(5);
-
-    count++;
   }
 
-  check(runStatus, {
-    "run is applied": (status) => status == "applied",
-  });
+  if (
+    !check(runStatus, {
+      "run is applied": (status) => status == "applied",
+    })
+  ) {
+    fail(
+      `run for workspace ${workspaceName} and configuration version ${configurationVersionID} not applied: run status ${runStatus}`
+    );
+  }
 };
 
 export function teardown(data) {
@@ -192,9 +223,13 @@ export function teardown(data) {
   // k6 documentation says the body is optional, but omitting it causes the request to be unauthorized
   let destroyOrganization = http.del(data.organizationURL, "", data.params);
 
-  if (destroyOrganization.status != "204") {
-    throw new Error(
-      `Failed to destroy the test organization ${TFE_ORG_NAME}: HTTP response status ${destroyOrganization.status}`
+  if (
+    !check(destroyOrganization, {
+      "test organization destroyed": (response) => response.status == 204,
+    })
+  ) {
+    fail(
+      `test organization ${TFE_ORG_NAME} not destroyed: HTTP response status ${destroyOrganization.status}`
     );
   }
 }
