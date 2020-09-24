@@ -1,6 +1,7 @@
 import { uuidv4 } from "https://jslib.k6.io/k6-utils/1.0.0/index.js";
 import { check, fail, sleep } from "k6";
 import http from "k6/http";
+import { Counter } from "k6/metrics";
 
 const TERMINATED_RUN_STATUSES = [
   "applied",
@@ -9,19 +10,29 @@ const TERMINATED_RUN_STATUSES = [
   "errored",
   "forced_canceled",
 ];
-const TF_CONFIG_ARCHIVE = open("./terraform.tar.gz", "b");
 const TFE_API_URL = `${__ENV.TFE_URL}/api/v2`;
 const TFE_EMAIL = __ENV.TFE_EMAIL;
 const TFE_ORG_NAME = __ENV.TFE_ORG_NAME;
+const TFE_PARAMS = {
+  headers: {
+    Authorization: `Bearer ${__ENV.TFE_API_TOKEN}`,
+    "Content-Type": "application/vnd.api+json",
+  },
+};
 const TFE_URL = __ENV.TFE_URL;
 
+let tfConfigArchive = open("./terraform.tar.gz", "b");
+let tfRunStatusCounters = {
+  applied: new Counter("tf_runs_applied"),
+  canceled: new Counter("tf_runs_canceled"),
+  discarded: new Counter("tf_runs_discarded"),
+  errored: new Counter("tf_runs_errored"),
+  forced_canceled: new Counter("tf_runs_forced_canceled"),
+};
+
 export function setup() {
-  let data = {
-    params: {
-      headers: {
-        Authorization: `Bearer ${__ENV.TFE_API_TOKEN}`,
-        "Content-Type": "application/vnd.api+json",
-      },
+  // This data object is passed to default and teardown.
+  let data = {};
     },
   };
 
@@ -39,14 +50,10 @@ export function setup() {
   let createOrganization = http.post(
     `${TFE_API_URL}/organizations`,
     createOrganizationBody,
-    data.params
+    TFE_PARAMS
   );
 
-  if (
-    !check(createOrganization, {
-      "test organization created": (response) => response.status == 201,
-    })
-  ) {
+  if (createOrganization.status != 201) {
     fail(
       `test organization ${TFE_ORG_NAME} not created: HTTP response status ${createOrganization.status}`
     );
@@ -80,7 +87,7 @@ export default (data) => {
   let createWorkspace = http.post(
     `${data.organizationURL}/workspaces`,
     createWorkspaceBody,
-    data.params
+    TFE_PARAMS
   );
 
   if (
@@ -112,7 +119,7 @@ export default (data) => {
   let createConfigurationVersion = http.post(
     `${workspaceURL}/configuration-versions`,
     createConfigurationVersionBody,
-    data.params
+    TFE_PARAMS
   );
 
   if (
@@ -135,12 +142,12 @@ export default (data) => {
   sleep(1);
 
   // https://www.terraform.io/docs/cloud/api/configuration-versions.html#upload-configuration-files
-  let configurationArchive = http.file(TF_CONFIG_ARCHIVE);
+  let configurationArchive = http.file(tfConfigArchive);
 
   let uploadConfigurationFiles = http.put(
     configurationUploadURL,
     configurationArchive.data,
-    data.params
+    TFE_PARAMS
   );
 
   if (
@@ -176,7 +183,7 @@ export default (data) => {
     },
   });
 
-  let createRun = http.post(`${TFE_API_URL}/runs`, createRunBody, data.params);
+  let createRun = http.post(`${TFE_API_URL}/runs`, createRunBody, TFE_PARAMS);
 
   if (
     !check(createRun, {
@@ -202,32 +209,20 @@ export default (data) => {
     // binary exponential backoff
     runSleepDuration = runSleepDuration * 2;
 
-    let getRunDetails = http.get(`${TFE_API_URL}/runs/${runID}`, data.params);
+    let getRunDetails = http.get(`${TFE_API_URL}/runs/${runID}`, TFE_PARAMS);
 
     runStatus = JSON.parse(getRunDetails.body).data.attributes.status;
   }
 
-  if (
-    !check(runStatus, {
-      "run is applied": (status) => status == "applied",
-    })
-  ) {
-    fail(
-      `run for workspace ${workspaceName} and configuration version ${configurationVersionID} not applied: run status ${runStatus}`
-    );
-  }
+  tfRunStatusCounters[runStatus].add(1);
 };
 
 export function teardown(data) {
   // https://www.terraform.io/docs/cloud/api/organizations.html#destroy-an-organization
   // k6 documentation says the body is optional, but omitting it causes the request to be unauthorized
-  let destroyOrganization = http.del(data.organizationURL, "", data.params);
+  let destroyOrganization = http.del(data.organizationURL, "", TFE_PARAMS);
 
-  if (
-    !check(destroyOrganization, {
-      "test organization destroyed": (response) => response.status == 204,
-    })
-  ) {
+  if (destroyOrganization.status != 204) {
     fail(
       `test organization ${TFE_ORG_NAME} not destroyed: HTTP response status ${destroyOrganization.status}`
     );
