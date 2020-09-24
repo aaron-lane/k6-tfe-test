@@ -33,8 +33,27 @@ let tfRunStatusCounters = {
 export function setup() {
   // This data object is passed to default and teardown.
   let data = {};
+
+  // https://www.terraform.io/docs/cloud/api/admin/settings.html#update-general-settings
+  let updateGeneralSettingsBody = JSON.stringify({
+    data: {
+      attributes: {
+        "api-rate-limiting-enabled": false,
+      },
     },
-  };
+  });
+
+  let updateGeneralSettings = http.patch(
+    `${TFE_API_URL}/admin/general-settings`,
+    updateGeneralSettingsBody,
+    TFE_PARAMS
+  );
+
+  if (updateGeneralSettings.status != 200) {
+    fail(
+      `general settings not updated: HTTP response status ${updateGeneralSettings.status}`
+    );
+  }
 
   // https://www.terraform.io/docs/cloud/api/organizations.html#create-an-organization
   let createOrganizationBody = JSON.stringify({
