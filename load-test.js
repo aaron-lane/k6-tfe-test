@@ -9,6 +9,7 @@ export let options = {
     // ramp-down to 0 users over 5 minutes
     { duration: "5m", target: 0 },
   ],
+  teardownTimeout: "120s",
   thresholds: {
     // 95% of requests must complete below 0.280s
     http_req_duration: ["p(95)<280"],
