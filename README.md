@@ -8,12 +8,14 @@ based on the configuration in the [terraform directory](./terraform).
 
 ## Installation
 
+### K6
+
 Install k6 based on the
 [k6 installation document](https://k6.io/docs/getting-started/installation).
 
-Deploy TFE,
-[install Terraform 0.13.3](https://www.terraform.io/docs/enterprise/admin/resources.html#managing-terraform-versions),
-and
+### TFE
+
+Deploy TFE and
 [create an API token](https://www.terraform.io/docs/cloud/users-teams-organizations/api-tokens.html).
 
 ## Usage
@@ -22,6 +24,9 @@ The following sections demonstrate how to perform different types of
 testing. Each of the `*-test.js` scripts use the logic defined in
 [test.js](./test.js) with different combinations of virtual users and
 durations.
+
+The `--no-teardown` option can be used to preserve the test
+organization for manual inspection.
 
 ### Smoke Testing
 
