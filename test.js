@@ -19,6 +19,12 @@ const TFE_PARAMS = {
     "Content-Type": "application/vnd.api+json",
   },
 };
+const TFE_UPLOAD_PARAMS = {
+  headers: {
+    Authorization: `Bearer ${__ENV.TFE_API_TOKEN}`,
+    "Content-Type": "application/octet-stream",
+  },
+};
 const TFE_URL = __ENV.TFE_URL;
 
 let tfConfigArchive = open("./terraform.tar.gz", "b");
@@ -161,12 +167,10 @@ export default (data) => {
   sleep(1);
 
   // https://www.terraform.io/docs/cloud/api/configuration-versions.html#upload-configuration-files
-  let configurationArchive = http.file(tfConfigArchive);
-
   let uploadConfigurationFiles = http.put(
     configurationUploadURL,
-    configurationArchive.data,
-    TFE_PARAMS
+    tfConfigArchive,
+    TFE_UPLOAD_PARAMS
   );
 
   if (
